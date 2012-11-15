@@ -1,10 +1,5 @@
 #include "st20.h"
 #include <cstdlib>
-#include <utility>
-#include <fstream>
-using std::endl;
-
-static std::ofstream fout("debug.txt");
 
 static inline int max(int a, int b){
     return (a>b)?a : b;
@@ -92,18 +87,12 @@ void st20::GridEvaluator::Evaluate(st20& mySelf){
                 }
             }
         }
-        iEvaluationResult += maxV;
+        if (iTargetX!=-1) iEvaluationResult += maxV;
     }
-
-        fout << "Evaluation: " << iMoveX  << ' '<< iMoveY << ' '<< iTargetX <<' '<< iTargetY <<' '<< mySelf.mapc[iTargetX][iTargetY]
-            << ' ' << mySelf.myRemainingPoint << ' ' << iAddHPBeforeAction << ' ' << iAddSpeedBeforeAction << ' '
-            << iAddStrengthBeforeAction << endl;
-
 }
 
 void st20::init(){
     //set property
-        fout << getID() << endl;
     for (int i=0; i<5; ++i) increaseHealth();
     for (int i=0; i<2; ++i) increaseStrength();
     for (int i=0; i<3; ++i) increaseSpeed();
@@ -128,7 +117,6 @@ void st20::init(){
 void st20::play(){
     //Update info
     ++CurRound;
-        fout << "Round "<< CurRound << endl;
     if (DataValid){
         for (int i = 0; i<playerCount; ++i){
             ifDead[i] = true;
@@ -235,7 +223,6 @@ void st20::play(){
         }   //radical, priority is fish, only use of remaining property points for Strength or Speed is allowed.
 
         int iInitialX = getX(), iInitialY = getY();
-            fout << iInitialX << ' ' << iInitialY << endl;
         GridEvaluator BestChoice;
         BestChoice.HPGoal = (myHP <= EmergencyPercentage * myMaxHP / 100 && myHP <= EmergencyAbsoluteValue) ?
                             min(EmergencyPercentage * myMaxHP / 100, EmergencyAbsoluteValue) : 0;
@@ -250,7 +237,7 @@ void st20::play(){
         for (int x = iInitialX - dis; x<=iInitialX+dis; ++x)
         if (x>=1 && x<=N){
             int y = iInitialY + dis - abs(x-iInitialX);
-            if (y>=0 && y<=M && mapc[x][y] == EMPTY){
+            if (y>=1 && y<=M && mapc[x][y] == EMPTY){
                 NextChoice.iMoveX = x;
                 NextChoice.iMoveY = y;
                 NextChoice.Evaluate(*this);
@@ -259,7 +246,7 @@ void st20::play(){
             }
             if (abs(x-iInitialX)!=dis){
                 y = iInitialY - dis + abs(x-iInitialX);
-                if (y>=0 && y<=M && mapc[x][y] == EMPTY){
+                if (y>=1 && y<=M && mapc[x][y] == EMPTY){
                     NextChoice.iMoveX = x;
                     NextChoice.iMoveY = y;
                     NextChoice.Evaluate(*this);
@@ -269,13 +256,12 @@ void st20::play(){
             }
         }
         for (int spAdded = 1; spAdded<= min(iMaxSPAdded, myRemainingPoint); ++spAdded){
-                fout << "spAdd applied. " <<  spAdded<< endl;
             NextChoice.iAddSpeedBeforeAction = spAdded;
             int curSP = mySP + spAdded;
             for (int x = iInitialX - curSP; x<=iInitialX + curSP; ++x)
-            if (x>=0 && x<=N){
+            if (x>=1 && x<=N){
                 int y = iInitialY + curSP - abs(x - iInitialX);
-                if (y>=0 && y<=M && mapc[x][y] == EMPTY){
+                if (y>=1 && y<=M && mapc[x][y] == EMPTY){
                     NextChoice.iMoveX = x;
                     NextChoice.iMoveY = y;
                     NextChoice.Evaluate(*this);
@@ -284,7 +270,7 @@ void st20::play(){
                 }
                 if (abs(x - iInitialX)!= curSP){
                     y = iInitialY - curSP + abs(x-iInitialX);
-                    if (y>=0 && y<=M && mapc[x][y] == EMPTY){
+                    if (y>=1 && y<=M && mapc[x][y] == EMPTY){
                         NextChoice.iMoveX = x;
                         NextChoice.iMoveY = y;
                         NextChoice.Evaluate(*this);
@@ -298,7 +284,6 @@ void st20::play(){
         for (int i = 0 ;i<BestChoice.iAddSpeedBeforeAction; ++i) increaseSpeed();
         for (int i = 0; i<BestChoice.iAddHPBeforeAction; ++i) increaseHealth();
         for (int i = 0; i<BestChoice.iAddStrengthBeforeAction; ++i) increaseStrength();
-            fout << BestChoice.iMoveX << ' ' << BestChoice.iMoveY << ' ' << BestChoice.iTargetX << ' ' << BestChoice.iTargetY << ' ' << mapc[BestChoice.iTargetX][BestChoice.iTargetY] << endl;
         if (BestChoice.iMoveX != iInitialX || BestChoice.iMoveY != iInitialY)
             move(BestChoice.iMoveX, BestChoice.iMoveY);
         if (BestChoice.iTargetX!=-1)
