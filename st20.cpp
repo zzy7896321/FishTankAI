@@ -21,9 +21,13 @@ int st20::GridEvaluator::iPropertyCostForSPCoefficient = 0;
 int st20::GridEvaluator::iPropertyCostForSTCoefficient = 0;
 int st20::GridEvaluator::iETInRangeEnemyCoefficient = 0;
 int st20::GridEvaluator::iETNotInRangeEnemyCoefficient = 0;
+int st20::GridEvaluator::iLevelOneEnemyMultiplier = 0;
+int st20::GridEvaluator::iLevelTwoEnemyMultiplier = 0;
+int st20::GridEvaluator::iLevelThreeEnemyMultiplier = 0;
 int st20::GridEvaluator::iFoodBenefitCoefficient = 0;
+int st20::GridEvaluator::iPerHPAddedCoefficient = 0;
 int st20::GridEvaluator::iOneHitKillBenefitCoefficient = 0;
-int st20::GridEvaluator::iAttackBenefitCoefficient = 0;
+int st20::GridEvaluator::iAttackBenefitDecreaseCoefficient = 0;
 int st20::GridEvaluator::iMaxHPAdded = 0;
 int st20::GridEvaluator::iMaxSTAdded = 0;
 
@@ -33,9 +37,14 @@ void st20::GridEvaluator::Evaluate(st20& mySelf){
     iAddHPBeforeAction = iAddStrengthBeforeAction = 0;
     for (int i = 1; i<=N; ++i)
     for (int j = 1; j<=M; ++j)
-    if ((mySelf.mapc[i][j]!=EMPTY) && (mySelf.mapc[i][j]!=FOOD) && (mySelf.mapc[i][j]!=mySelf.myId))
-        iEvaluationResult += ((ManDis(iMoveX, iMoveY, i, j) <= mySelf.ETSpeed[mySelf.idTable[mySelf.mapc[i][j]]])
+    if ((mySelf.mapc[i][j]!=EMPTY) && (mySelf.mapc[i][j]!=FOOD) && (mySelf.mapc[i][j]!=mySelf.myId)){
+        int base =((ManDis(iMoveX, iMoveY, i, j) <= mySelf.ETSpeed[mySelf.idTable[mySelf.mapc[i][j]]])
             ? iETInRangeEnemyCoefficient : iETNotInRangeEnemyCoefficient);
+        int multiplier = mySelf.ETMaxHP[mySelf.mapc[i][j]] / mySelf.iAttackMaxHPRatio;
+        multiplier = (multiplier) ? (mySelf.myHP / multiplier) : 3;
+        multiplier = (multiplier <= 1) ? iLevelOneEnemyMultiplier : ((multiplier <=2) ? iLevelTwoEnemyMultiplier : iLevelThreeEnemyMultiplier);
+        iEvaluationResult += base * multiplier;
+    }
     {
         int maxV = -2000000000;
         iTargetX = -1;
@@ -51,16 +60,25 @@ void st20::GridEvaluator::Evaluate(st20& mySelf){
                         int ihp = 0;
                         while (l<=r){
                             int mid = (l+r) >> 1;
-                            if (2*mid + mySelf.myHP + max(2, (mySelf.myMaxHP+2*mid)/10) >= HPGoal){
+                            if (2*mid + mySelf.myHP + max(2, (mySelf.myMaxHP+2*mid)/10) <= HPGoal){
+                                l = mid+1;
+                            } else {
                                 ihp = mid;
                                 r = mid-1;
-                            } else {
-                                l = mid+1;
                             }
                         }
-                        int V = ihp * iPropertyCostForHPCoefficient + iFoodBenefitCoefficient;
+                        int V = ihp * iPropertyCostForHPCoefficient + iFoodBenefitCoefficient
+                                + iPerHPAddedCoefficient * ( 2* ihp + max(2 ,(mySelf.myMaxHP + 2*ihp) / 10));
                         if (V>maxV){
                             iAddHPBeforeAction = ihp;
+                            iAddStrengthBeforeAction = 0;
+                            iTargetX = tx;
+                            iTargetY = ty;
+                            maxV = V;
+                        }
+                        V = iFoodBenefitCoefficient + iPerHPAddedCoefficient * max(2, mySelf.myMaxHP / 10);
+                        if (V>maxV){
+                            iAddHPBeforeAction = 0;
                             iAddStrengthBeforeAction = 0;
                             iTargetX = tx;
                             iTargetY = ty;
@@ -70,11 +88,16 @@ void st20::GridEvaluator::Evaluate(st20& mySelf){
                     else if (target!=mySelf.myId){
                         int ist = max(0, mySelf.askHP(target) - mySelf.myST);
                         ist = (ist>min(iMaxSTAdded, iPropertyPointLeft)) ? 0 : ist;
-                        int V = - iETInRangeEnemyCoefficient + ist * iPropertyCostForSTCoefficient;
+                        int V = 0;
                         if (mySelf.askHP(target) > mySelf.myST + ist){
-                            V += iAttackBenefitCoefficient;
+                            V = iOneHitKillBenefitCoefficient +
+                                ((mySelf.askHP(target) - mySelf.myST) / mySelf.myST + 1) * iAttackBenefitDecreaseCoefficient ;
                         } else {
-                            V += iOneHitKillBenefitCoefficient;
+                            V = iOneHitKillBenefitCoefficient + ist * iPropertyCostForSTCoefficient;
+                            int multiplier = (mySelf.ETMaxHP[target] / mySelf.iAttackMaxHPRatio);
+                            multiplier = (multiplier) ? (mySelf.myHP / multiplier) : 3;
+                            multiplier = (multiplier <= 1) ? iLevelOneEnemyMultiplier : ((multiplier <=2) ? iLevelTwoEnemyMultiplier : iLevelThreeEnemyMultiplier);
+                            V -= iETInRangeEnemyCoefficient * multiplier;
                         }
                         if (V>maxV){
                             iAddHPBeforeAction = 0;
@@ -88,13 +111,29 @@ void st20::GridEvaluator::Evaluate(st20& mySelf){
             }
         }
         if (iTargetX!=-1) iEvaluationResult += maxV;
+        else {
+            int l =0, r = min(iPropertyPointLeft, iMaxHPAdded);
+            int ihp = 0;
+            while (l<=r){
+                int mid = (l+r) >> 1;
+                if (2*mid + mySelf.myHP + max(2, (mySelf.myMaxHP+2*mid)/10) <= HPGoal){
+                    l = mid+1;
+                } else {
+                    ihp = mid;
+                    r = mid-1;
+                }
+            }
+            iEvaluationResult += iPropertyCostForHPCoefficient * ihp + iPerHPAddedCoefficient * 2 * ihp;
+            iAddHPBeforeAction = ihp;
+            iAddStrengthBeforeAction = 0;
+        }
     }
 }
 
 void st20::init(){
     //set property
-    for (int i=0; i<5; ++i) increaseHealth();
-    for (int i=0; i<2; ++i) increaseStrength();
+    for (int i=0; i<4; ++i) increaseHealth();
+    for (int i=0; i<3; ++i) increaseStrength();
     for (int i=0; i<3; ++i) increaseSpeed();
     myId = getID();
     //get map
@@ -104,7 +143,7 @@ void st20::init(){
             mapc[i][j] = askWhat(i, j);
             if (mapc[i][j]!=FOOD && mapc[i][j]!=EMPTY){
                 idTable[mapc[i][j]] = playerCount++;
-                ETMaxHP.push_back(askHP(mapc[i][j]));
+                ETMaxHP.push_back(max(2,askHP(mapc[i][j])));
                 ETSpeed.push_back(1);
                 ifDead.push_back(false);
                 PosX.push_back(i);
@@ -112,6 +151,14 @@ void st20::init(){
             }
         }
     }
+    averageETMaxHP = 0;
+    averageETSpeed = 0;
+    for (unsigned i = 0 ;i<ETMaxHP.size(); ++i){
+        averageETMaxHP += ETMaxHP[i];
+        averageETSpeed += ETSpeed[i];
+    }
+    averageETMaxHP /= ETMaxHP.size();
+    averageETSpeed /= ETSpeed.size();
 }
 
 void st20::play(){
@@ -127,7 +174,7 @@ void st20::play(){
             if (now!=FOOD && now!=EMPTY){
                 if (idTable.find(now)==idTable.end()){
                     idTable[now] = playerCount++;
-                    ETMaxHP.push_back(askHP(now));
+                    ETMaxHP.push_back(max(2, askHP(now)));
                     ETSpeed.push_back(1);
                     ifDead.push_back(false);
                     PosX.push_back(i);
@@ -154,7 +201,7 @@ void st20::play(){
             if (now!=FOOD && now!=EMPTY){
                 if (idTable.find(now)==idTable.end()){
                     idTable[now] = playerCount++;
-                    ETMaxHP.push_back(askHP(now));
+                    ETMaxHP.push_back(max(2, askHP(now)));
                     ETSpeed.push_back(1);
                     ifDead.push_back(false);
                     PosX.push_back(i);
@@ -171,6 +218,14 @@ void st20::play(){
         }
         DataValid = true;
     }
+    averageETMaxHP = 0;
+    averageETSpeed = 0;
+    for (unsigned i = 0 ;i<ETMaxHP.size(); ++i){
+        averageETMaxHP += ETMaxHP[i];
+        averageETSpeed += ETSpeed[i];
+    }
+    averageETMaxHP /= ETMaxHP.size();
+    averageETSpeed /= ETSpeed.size();
 
     //Decide where to move and attack
     {
@@ -181,51 +236,65 @@ void st20::play(){
         myRemainingPoint = getPoint();
         int iMaxSPAdded = 0;
         int myLevel = getLevel();
-        if (myHP <= EmergencyPercentage * myMaxHP / 100 && myHP <= EmergencyAbsoluteValue ){
+        if ( (myHP <= iEmergencyAbsoluteValue && myHP <= myMaxHP * iEmergencyPercentageWhenHPSmallerThanAbsoluteValue / 100)
+             || (myHP <= myMaxHP * iEmergencyPercentage / 100) ){
             GridEvaluator::SetCoefficients(iEmergencyPropertyCostForHPCoefficient,
                                           iEmergencyPropertyCostForSPCoefficient,
                                           iEmergencyPropertyCostForSTCoefficient,
                                           iEmergencyETInRangeEnemyCoefficient,
                                           iEmergencyETNotInRangeEnemyCoefficient,
+                                          iEmergencyLevelOneEnemyMultiplier,
+                                          iEmergencyLevelTwoEnemyMultiplier,
+                                          iEmergencyLevelThreeEnemyMultiplier,
                                           iEmergencyFoodBenefitCoefficient,
+                                          iEmergencyPerHPAddedCoefficient,
                                           iEmergencyOneHitKillBenefitCoefficient,
-                                          iEmergencyAttackBenefitCoefficient,
+                                          iEmergencyAttackBenefitDecreaseCoefficient,
                                           iEmergencyMaxHPAdded,
                                           iEmergencyMaxSTAdded);
             iMaxSPAdded = iEmergencyMaxSPAdded;
-        }   //emergency. priority is food. only using remaining property points for HP is allowed
-        else if (myHP <= NormalPercentage * myMaxHP / 100 && myHP <= NormalAbsoluteValue){
-            GridEvaluator::SetCoefficients(iNormalPropertyCostForHPCoefficient,
-                                          iNormalPropertyCostForSPCoefficient,
-                                          iNormalPropertyCostForSTCoefficient,
-                                          iNormalETInRangeEnemyCoefficient,
-                                          iNormalETNotInRangeEnemyCoefficient,
-                                          iNormalFoodBenefitCoefficient,
-                                          iNormalOneHitKillBenefitCoefficient,
-                                          iNormalAttackBenefitCoefficient,
-                                          iNormalMaxHPAdded,
-                                          iNormalMaxSTAdded);
-            iMaxSPAdded = iNormalMaxSPAdded;
-        }   //normal, priority is one-hit-kill fish. any use of remaing property points is not allowed
-        else // if (myHP<=RadicalPercentage * myMaxHP / 100 && myHP <= RadicalAbsoluteValue)
-        {
+        }   //emergency. priority is food.
+        else if (myHP >= iRadicalAbsoluteValue && myHP<= iRadicalPercentageWhenHPBiggerThanAbsoluteValue) {
             GridEvaluator::SetCoefficients(iRadicalPropertyCostForHPCoefficient,
                                           iRadicalPropertyCostForSPCoefficient,
                                           iRadicalPropertyCostForSTCoefficient,
                                           iRadicalETInRangeEnemyCoefficient,
                                           iRadicalETNotInRangeEnemyCoefficient,
+                                          iRadicalLevelOneEnemyMultiplier,
+                                          iRadicalLevelTwoEnemyMultiplier,
+                                          iRadicalLevelThreeEnemyMultiplier,
                                           iRadicalFoodBenefitCoefficient,
+                                          iRadicalPerHPAddedCoefficient,
                                           iRadicalOneHitKillBenefitCoefficient,
-                                          iRadicalAttackBenefitCoefficient,
+                                          iRadicalAttackBenefitDecreaseCoefficient,
                                           iRadicalMaxHPAdded,
                                           iRadicalMaxSTAdded);
             iMaxSPAdded = iRadicalMaxSPAdded;
-        }   //radical, priority is fish, only use of remaining property points for Strength or Speed is allowed.
+        }   //radical, priority is fish.
+        else {
+            GridEvaluator::SetCoefficients(iNormalPropertyCostForHPCoefficient,
+                                          iNormalPropertyCostForSPCoefficient,
+                                          iNormalPropertyCostForSTCoefficient,
+                                          iNormalETInRangeEnemyCoefficient,
+                                          iNormalETNotInRangeEnemyCoefficient,
+                                          iNormalLevelOneEnemyMultiplier,
+                                          iNormalLevelTwoEnemyMultiplier,
+                                          iNormalLevelThreeEnemyMultiplier,
+                                          iNormalFoodBenefitCoefficient,
+                                          iNormalPerHPAddedCoefficient,
+                                          iNormalOneHitKillBenefitCoefficient,
+                                          iNormalAttackBenefitDecreaseCoefficient,
+                                          iNormalMaxHPAdded,
+                                          iNormalMaxSTAdded);
+            iMaxSPAdded = iNormalMaxSPAdded;
+        }   //normal, priority is one-hit-kill fish.
 
         int iInitialX = getX(), iInitialY = getY();
         GridEvaluator BestChoice;
-        BestChoice.HPGoal = (myHP <= EmergencyPercentage * myMaxHP / 100 && myHP <= EmergencyAbsoluteValue) ?
-                            min(EmergencyPercentage * myMaxHP / 100, EmergencyAbsoluteValue) : 0;
+        BestChoice.HPGoal = (myHP <= iEmergencyAbsoluteValue && myHP<= myMaxHP * iEmergencyPercentageWhenHPSmallerThanAbsoluteValue / 100)
+                            ? (myMaxHP * iEmergencyPercentageWhenHPSmallerThanAbsoluteValue / 100) :
+                            ( (myHP<=myMaxHP * iEmergencyPercentage / 100) ? (myMaxHP * iEmergencyAbsoluteValue / 100)
+                             : (averageETMaxHP) );
         BestChoice.iMoveX = iInitialX;
         BestChoice.iMoveY = iInitialY;
         BestChoice.iAddSpeedBeforeAction = 0;
@@ -291,9 +360,16 @@ void st20::play(){
 
         if (getLevel() - myLevel){
             for (int i = 0; i<getLevel() - myLevel; ++i){
-                if (getSp() < N+M-2) increaseSpeed();
-                if (getAtt() < getMaxHP() / 2) increaseStrength(); else increaseHealth();
+                if (getSp() < min(N+M-1, averageETSpeed)) increaseSpeed(); else
+                if (getAtt() < getMaxHP() / iAttackMaxHPRatio) increaseStrength(); else increaseHealth();
+                if (getAtt() < getMaxHP() / iAttackMaxHPRatio) increaseStrength(); else increaseHealth();
             }
+        }
+        if (getPoint() > iPointsToSave){
+            int left = getPoint() - iPointsToSave;
+            //while (getSp() < min(N+M-2, averageETSpeed) && (--left)>=0) increaseSpeed();
+            while ((--left)>=0)
+                if (getAtt() < getMaxHP() / iAttackMaxHPRatio) increaseStrength(); else increaseHealth();
         }
     }
 }

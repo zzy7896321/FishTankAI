@@ -16,42 +16,58 @@ public:
 
     st20():idTable(), ETMaxHP(), ETSpeed(), ifDead(), PosX(), PosY(),
            CurRound(-1), DataValid(false), playerCount(0),
-           EmergencyPercentage(10), EmergencyAbsoluteValue(50),
-           NormalPercentage(60), NormalAbsoluteValue(200),
-           RadicalPercentage(100), RadicalAbsoluteValue(0x7F7F7F),
-           iEmergencyPropertyCostForHPCoefficient(0),
-           iEmergencyPropertyCostForSPCoefficient(-10000),
-           iEmergencyPropertyCostForSTCoefficient(-10000),
+           iEmergencyPercentage(10),
+           iEmergencyAbsoluteValue(50),
+           iEmergencyPercentageWhenHPSmallerThanAbsoluteValue(50),
+           iRadicalAbsoluteValue(170),
+           iRadicalPercentageWhenHPBiggerThanAbsoluteValue(0.8),
+           iEmergencyPropertyCostForHPCoefficient(-1000),
+           iEmergencyPropertyCostForSPCoefficient(-1000),
+           iEmergencyPropertyCostForSTCoefficient(-100000),
            iEmergencyETInRangeEnemyCoefficient(-100),
-           iEmergencyETNotInRangeEnemyCoefficient(-50),
+           iEmergencyETNotInRangeEnemyCoefficient(-80),
+           iEmergencyLevelOneEnemyMultiplier(10),
+           iEmergencyLevelTwoEnemyMultiplier(8),
+           iEmergencyLevelThreeEnemyMultiplier(5),
            iEmergencyFoodBenefitCoefficient(50000),
-           iEmergencyOneHitKillBenefitCoefficient(2000),
-           iEmergencyAttackBenefitCoefficient(-20000),
-           iEmergencyMaxHPAdded(2),
+           iEmergencyPerHPAddedCoefficient(600),
+           iEmergencyOneHitKillBenefitCoefficient(38000),
+           iEmergencyAttackBenefitDecreaseCoefficient(-50000),
+           iEmergencyMaxHPAdded(4),
            iEmergencyMaxSTAdded(0),
-           iEmergencyMaxSPAdded(0),
-           iNormalPropertyCostForHPCoefficient(-10000),
-           iNormalPropertyCostForSPCoefficient(-10000),
-           iNormalPropertyCostForSTCoefficient(-10000),
+           iEmergencyMaxSPAdded(4),
+           iNormalPropertyCostForHPCoefficient(-1000),
+           iNormalPropertyCostForSPCoefficient(-1000),
+           iNormalPropertyCostForSTCoefficient(-1000),
            iNormalETInRangeEnemyCoefficient(-100),
            iNormalETNotInRangeEnemyCoefficient(-50),
-           iNormalFoodBenefitCoefficient(10000),
+           iNormalLevelOneEnemyMultiplier(10),
+           iNormalLevelTwoEnemyMultiplier(5),
+           iNormalLevelThreeEnemyMultiplier(1),
+           iNormalFoodBenefitCoefficient(46000),
+           iNormalPerHPAddedCoefficient(500),
            iNormalOneHitKillBenefitCoefficient(50000),
-           iNormalAttackBenefitCoefficient(10000),
-           iNormalMaxHPAdded(0),
-           iNormalMaxSTAdded(0),
-           iNormalMaxSPAdded(0),
-           iRadicalPropertyCostForHPCoefficient(-10000),
-           iRadicalPropertyCostForSPCoefficient(0),
-           iRadicalPropertyCostForSTCoefficient(0),
-           iRadicalETInRangeEnemyCoefficient(-50),
-           iRadicalETNotInRangeEnemyCoefficient(-20),
-           iRadicalFoodBenefitCoefficient(5000),
-           iRadicalOneHitKillBenefitCoefficient(100000),
-           iRadicalAttackBenefitCoefficient(50000),
+           iNormalAttackBenefitDecreaseCoefficient(-1500),
+           iNormalMaxHPAdded(2),
+           iNormalMaxSTAdded(2),
+           iNormalMaxSPAdded(2),
+           iRadicalPropertyCostForHPCoefficient(-100000),
+           iRadicalPropertyCostForSPCoefficient(-1000),
+           iRadicalPropertyCostForSTCoefficient(-1000),
+           iRadicalETInRangeEnemyCoefficient(-100),
+           iRadicalETNotInRangeEnemyCoefficient(-30),
+           iRadicalLevelOneEnemyMultiplier(10),
+           iRadicalLevelTwoEnemyMultiplier(3),
+           iRadicalLevelThreeEnemyMultiplier(1),
+           iRadicalFoodBenefitCoefficient(35000),
+           iRadicalPerHPAddedCoefficient(400),
+           iRadicalOneHitKillBenefitCoefficient(50000),
+           iRadicalAttackBenefitDecreaseCoefficient(),
            iRadicalMaxHPAdded(0),
-           iRadicalMaxSTAdded(2),
-           iRadicalMaxSPAdded(2)
+           iRadicalMaxSTAdded(4),
+           iRadicalMaxSPAdded(4),
+           iAttackMaxHPRatio(3),
+           iPointsToSave(4)
            {}
 private:
     int mapc[N+1][M+1];
@@ -75,13 +91,14 @@ private:
     int myMaxHP;
     int myRemainingPoint;
     int playerCount;
+    int averageETMaxHP;
+    int averageETSpeed;
 
-    int EmergencyPercentage;
-    int EmergencyAbsoluteValue;
-    int NormalPercentage;
-    int NormalAbsoluteValue;
-    int RadicalPercentage;
-    int RadicalAbsoluteValue;
+    int iEmergencyPercentage;
+    int iEmergencyAbsoluteValue;
+    int iEmergencyPercentageWhenHPSmallerThanAbsoluteValue;
+    int iRadicalAbsoluteValue;
+    int iRadicalPercentageWhenHPBiggerThanAbsoluteValue;
 
     static const int dx[4];
     static const int dy[4];
@@ -101,21 +118,29 @@ private:
         static int iPropertyCostForSTCoefficient;
         static int iETInRangeEnemyCoefficient;
         static int iETNotInRangeEnemyCoefficient;
+        static int iLevelOneEnemyMultiplier;
+        static int iLevelTwoEnemyMultiplier;
+        static int iLevelThreeEnemyMultiplier;  //The enemies of higher(one) level are more dangerous.
         static int iFoodBenefitCoefficient;
+        static int iPerHPAddedCoefficient;
         static int iOneHitKillBenefitCoefficient;
-        static int iAttackBenefitCoefficient;
+        static int iAttackBenefitDecreaseCoefficient;
         static int iMaxHPAdded;
         static int iMaxSTAdded;
-        static void SetCoefficients(int pcfhpc, int pcfspc, int pcfstc, int eirec, int enirec,
-                                    int fbc, int ohkbc, int abc, int mhpa, int msta){
+        static void SetCoefficients(int pcfhpc, int pcfspc, int pcfstc, int eirec, int enirec, int loem, int ltem,
+                                    int lthem, int fbc, int phpac, int ohkbc, int abdc, int mhpa, int msta){
             iPropertyCostForHPCoefficient = pcfhpc;
             iPropertyCostForSPCoefficient = pcfspc;
             iPropertyCostForSTCoefficient = pcfstc;
             iETInRangeEnemyCoefficient = eirec;
             iETNotInRangeEnemyCoefficient = enirec;
+            iLevelOneEnemyMultiplier = loem;
+            iLevelTwoEnemyMultiplier = ltem;
+            iLevelThreeEnemyMultiplier = lthem;
             iFoodBenefitCoefficient = fbc;
+            iPerHPAddedCoefficient = phpac;
             iOneHitKillBenefitCoefficient = ohkbc;
-            iAttackBenefitCoefficient = abc;
+            iAttackBenefitDecreaseCoefficient = abdc;
             iMaxHPAdded = mhpa;
             iMaxSTAdded = msta;
         }
@@ -128,9 +153,13 @@ private:
     int iEmergencyPropertyCostForSTCoefficient;
     int iEmergencyETInRangeEnemyCoefficient;
     int iEmergencyETNotInRangeEnemyCoefficient;
+    int iEmergencyLevelOneEnemyMultiplier;
+    int iEmergencyLevelTwoEnemyMultiplier;
+    int iEmergencyLevelThreeEnemyMultiplier;
     int iEmergencyFoodBenefitCoefficient;
+    int iEmergencyPerHPAddedCoefficient;
     int iEmergencyOneHitKillBenefitCoefficient;
-    int iEmergencyAttackBenefitCoefficient;
+    int iEmergencyAttackBenefitDecreaseCoefficient;
     int iEmergencyMaxHPAdded;
     int iEmergencyMaxSTAdded;
     int iEmergencyMaxSPAdded;
@@ -140,9 +169,13 @@ private:
     int iNormalPropertyCostForSTCoefficient;
     int iNormalETInRangeEnemyCoefficient;
     int iNormalETNotInRangeEnemyCoefficient;
+    int iNormalLevelOneEnemyMultiplier;
+    int iNormalLevelTwoEnemyMultiplier;
+    int iNormalLevelThreeEnemyMultiplier;
     int iNormalFoodBenefitCoefficient;
+    int iNormalPerHPAddedCoefficient;
     int iNormalOneHitKillBenefitCoefficient;
-    int iNormalAttackBenefitCoefficient;
+    int iNormalAttackBenefitDecreaseCoefficient;
     int iNormalMaxHPAdded;
     int iNormalMaxSTAdded;
     int iNormalMaxSPAdded;
@@ -152,12 +185,19 @@ private:
     int iRadicalPropertyCostForSTCoefficient;
     int iRadicalETInRangeEnemyCoefficient;
     int iRadicalETNotInRangeEnemyCoefficient;
+    int iRadicalLevelOneEnemyMultiplier;
+    int iRadicalLevelTwoEnemyMultiplier;
+    int iRadicalLevelThreeEnemyMultiplier;
     int iRadicalFoodBenefitCoefficient;
+    int iRadicalPerHPAddedCoefficient;
     int iRadicalOneHitKillBenefitCoefficient;
-    int iRadicalAttackBenefitCoefficient;
+    int iRadicalAttackBenefitDecreaseCoefficient;
     int iRadicalMaxHPAdded;
     int iRadicalMaxSTAdded;
     int iRadicalMaxSPAdded;
+
+    int iAttackMaxHPRatio;
+    int iPointsToSave;
 };
 
 #endif  //_ST20_H_
