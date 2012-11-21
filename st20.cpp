@@ -151,14 +151,19 @@ void st20::init(){
             }
         }
     }
-    averageETMaxHP = 0;
-    averageETSpeed = 0;
-    for (unsigned i = 0 ;i<ETMaxHP.size(); ++i){
-        averageETMaxHP += ETMaxHP[i];
-        averageETSpeed += ETSpeed[i];
+    if (ETMaxHP.size()){
+        averageETMaxHP = 0;
+        averageETSpeed = 0;
+        for (unsigned i = 0 ;i<ETMaxHP.size(); ++i){
+            averageETMaxHP += ETMaxHP[i];
+            averageETSpeed += ETSpeed[i];
+        }
+        averageETMaxHP /= ETMaxHP.size();
+        averageETSpeed /= ETSpeed.size();
+    } else {
+        averageETMaxHP = 2;
+        averageETSpeed = 1;
     }
-    averageETMaxHP /= ETMaxHP.size();
-    averageETSpeed /= ETSpeed.size();
 }
 
 void st20::play(){
@@ -218,14 +223,19 @@ void st20::play(){
         }
         DataValid = true;
     }
-    averageETMaxHP = 0;
-    averageETSpeed = 0;
-    for (unsigned i = 0 ;i<ETMaxHP.size(); ++i){
-        averageETMaxHP += ETMaxHP[i];
-        averageETSpeed += ETSpeed[i];
+    if (ETMaxHP.size()){
+        averageETMaxHP = 0;
+        averageETSpeed = 0;
+        for (unsigned i = 0 ;i<ETMaxHP.size(); ++i){
+            averageETMaxHP += ETMaxHP[i];
+            averageETSpeed += ETSpeed[i];
+        }
+        averageETMaxHP /= ETMaxHP.size();
+        averageETSpeed /= ETSpeed.size();
+    } else {
+        averageETMaxHP = 2;
+        averageETSpeed = 1;
     }
-    averageETMaxHP /= ETMaxHP.size();
-    averageETSpeed /= ETSpeed.size();
 
     //Decide where to move and attack
     {
